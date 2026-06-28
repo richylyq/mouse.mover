@@ -11,7 +11,7 @@ class MouseMoverApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Mouse Jiggler")
-        self.root.geometry("300x200")
+        self.root.geometry("300x250")
         self.root.resizable(False, False)
         
         # State variable
@@ -26,6 +26,10 @@ class MouseMoverApp:
         # Status Label
         self.status_label = tk.Label(root, text="Status: Stopped", fg="red", font=("Arial", 12, "bold"))
         self.status_label.pack(pady=20)
+
+        # Countdown Label
+        self.countdown_label = tk.Label(root, text="Next move in: --s", font=("Arial", 10, "italic"), fg="gray")
+        self.countdown_label.pack(pady=5)
 
         # Slider Label
         self.slider_label = tk.Label(root, text="Nudge Strength: 10 px", font=("Arial", 10))
@@ -67,7 +71,13 @@ class MouseMoverApp:
     def stop_mover(self):
         self.is_running = False
         self.status_label.config(text="Status: Stopped", fg="red")
+        self.countdown_label.config(text="Next move in: --s", fg="gray") # Reset label
         self.action_button.config(text="Start")
+
+    def update_countdown_ui(self, seconds_left):
+        """Thread-safe function to update the countdown label text."""
+        if self.is_running:
+            self.countdown_label.config(text=f"Next move in: {seconds_left}s", fg="blue")
 
     def mover_loop(self):
         while self.is_running:
@@ -79,10 +89,12 @@ class MouseMoverApp:
                 pyautogui.moveRel(current_pixel_distance, current_pixel_distance, duration=0.8)
                 pyautogui.moveRel(-1, -1, duration=0.9)
 
-                # Check every second if the user hit 'Stop' instead of sleeping for 60s straight
-                for _ in range(60):
+                # Check every 10s if the user hit 'Stop' instead of sleeping for 10s straight
+                for i in range(10, 0, -1):
                     if not self.is_running:
                         break
+                    # Safely schedule the text change on the main GUI thread
+                    self.root.after(0, self.update_countdown_ui, i)
                     time.sleep(1)
                     
             except pyautogui.FailSafeException:
